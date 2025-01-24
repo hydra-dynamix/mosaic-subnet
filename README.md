@@ -22,35 +22,28 @@ For guidance for miners and validators, please refer to. [Quick Start Guide](doc
 
 ## Miner Configuration
 
-The Mosaic miner supports multiple providers for image generation:
+The Mosaic miner supports two provider types for image generation:
 
 ### Available Providers
 
-1. **Local Provider** (Default)
-   - Uses local GPU/CPU for inference
+1. **Local Provider**
+   - Uses local GPU/CPU for inference with diffusers
    - Supports models from HuggingFace (default: stabilityai/sdxl-turbo)
    - No API key required
    ```bash
-   python -m mosaic_subnet.cli miner your-key --provider local --model stabilityai/sdxl-turbo
+   python -m mosaic_subnet.cli miner your-key --provider local
    ```
 
 2. **OpenAI Provider**
-   - Uses DALL-E 2 or DALL-E 3
-   - Requires OpenAI API key
+   - For custom API endpoints that follow OpenAI's format
+   - Requires API URL and key
    ```bash
-   python -m mosaic_subnet.cli miner your-key --provider openai --api-key your-api-key --model dall-e-3
-   ```
-
-3. **Custom Provider**
-   - Use any custom inference endpoint
-   - Supports configurable headers and parameters
-   ```bash
-   python -m mosaic_subnet.cli miner your-key --provider custom --api-url your-api-url --api-key your-api-key
+   python -m mosaic_subnet.cli miner your-key --provider openai --api-url your-api-url --api-key your-api-key
    ```
 
 ### Configuration Options
 
-All settings can be configured via environment variables or a config file:
+Settings can be configured via environment variables or a config file:
 
 1. Copy the sample configuration:
 ```bash
@@ -63,45 +56,33 @@ nano env/config.env
 ```
 
 #### Provider Settings
-- `MOSAIC_MINER_PROVIDER`: Provider type (local, openai, custom)
-- `MOSAIC_MINER_MODEL`: Model identifier
-- `MOSAIC_MINER_API_KEY`: API key for OpenAI/custom providers
-- `MOSAIC_MINER_API_BASE_URL`: Base URL for custom provider
+- `MOSAIC_MINER_PROVIDER`: Provider type (`local` or `openai`)
+- `MOSAIC_MINER_MODEL`: Model identifier (for local provider)
+- `MOSAIC_MINER_API_URL`: API URL (for openai provider)
+- `MOSAIC_MINER_API_KEY`: API key (for openai provider)
 
 #### Network Settings
-- `MOSAIC_MINER_HOST`: Host to bind to (default: 0.0.0.0)
-- `MOSAIC_MINER_PORT`: Port to run on (default: 8080)
-- `MOSAIC_USE_TESTNET`: Use testnet endpoints (default: false)
-- `MOSAIC_CALL_TIMEOUT`: API call timeout in seconds (default: 60)
-
-#### OpenAI-specific Settings
-- `MOSAIC_OPENAI_SIZE`: Image size (1024x1024, 1024x1792, or 1792x1024)
-- `MOSAIC_OPENAI_QUALITY`: Image quality for DALL-E 3 (standard or hd)
-- `MOSAIC_OPENAI_STYLE`: Image style for DALL-E 3 (vivid or natural)
-
-#### Custom Provider Settings
-- `MOSAIC_MINER_API_ADDITIONAL_HEADERS`: Additional HTTP headers as JSON
-- `MOSAIC_MINER_API_ADDITIONAL_PARAMS`: Additional API parameters as JSON
+Network settings like host and port have sensible defaults and can be overridden via CLI arguments if needed:
+```bash
+python -m mosaic_subnet.cli miner your-key --host 127.0.0.1 --port 8000
+```
 
 ### Provider Capabilities
 
 Each provider has different capabilities:
 
 1. **Local Provider**
-   - ✅ Negative prompts
-   - ✅ Seed control
-   - ✅ Step count control
-   - ❌ Size/quality/style options
+   - Uses HuggingFace's diffusers library
+   - Supports various Stable Diffusion models
+   - Default model: stabilityai/sdxl-turbo
+   - Requires GPU for reasonable performance
 
 2. **OpenAI Provider**
-   - ✅ Negative prompts (via prompt modification)
-   - ❌ Seed control
-   - ❌ Step count control
-   - ✅ Size/quality/style options (DALL-E 3)
-
-3. **Custom Provider**
-   - Capabilities depend on your API
-   - Configurable via additional parameters
+   - For custom endpoints that follow OpenAI's API format
+   - Endpoint must support:
+     - POST /v1/images/generations
+     - Request format: `{"prompt": "...", "n": 1, "response_format": "url"}`
+     - Response format: `{"data": [{"url": "..."}]}`
 
 ## Links
 - Website: [mosaicx.org](https://mosaicx.org/)
