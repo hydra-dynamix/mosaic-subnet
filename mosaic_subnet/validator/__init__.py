@@ -18,7 +18,8 @@ from mosaic_subnet.base import SampleInput, BaseValidator
 from mosaic_subnet.base.utils import get_netuid
 from mosaic_subnet.validator._config import ValidatorSettings
 from mosaic_subnet.validator.dataset import ValidationDataset
-from mosaic_subnet.validator.model import HPS
+from mosaic_subnet.validator.model import HPS, CLIP
+from mosaic_subnet.validator.api import APIValidator
 from mosaic_subnet.validator.utils import normalize_score, weight_score
 
 
@@ -35,7 +36,20 @@ class Validator(BaseValidator, Module):
         self.key = key
 
         self.netuid = get_netuid(self.c_client)
-        self.model = HPS()
+        
+        # Initialize model based on settings
+        if self.settings.model == "clip":
+            self.model = CLIP(model_name=self.settings.clip_model)
+        elif self.settings.model == "api":
+            if not self.settings.api_url:
+                raise ValueError("API URL is required when using api model")
+            self.model = APIValidator(
+                api_url=self.settings.api_url,
+                api_key=self.settings.api_key
+            )
+        else:
+            self.model = HPS()
+            
         self.dataset = ValidationDataset()
         self.call_timeout = self.settings.call_timeout
         self.weights_histories = deque(maxlen=10)
@@ -49,7 +63,7 @@ class Validator(BaseValidator, Module):
             return self.model.get_similarity(img, prompt)
         except Exception as e:
             logger.error(e)
-            return 0
+            return 0.0
 
     async def validate_step(self):
         score_dict = dict()
@@ -145,20 +159,36 @@ class Validator(BaseValidator, Module):
     def get_weights_history(self):
         return list(self.weights_histories)
 
+    def get_scores(self, sample_inputs: List[SampleInput]):
+        scores = []
+        for sample_input in sample_inputs:
+            try:
+                score = self.calculate_score(sample_input.image, sample_input.prompt)
+                scores.append(normalize_score(score))
+            except Exception as e:
+                logger.error(e)
+                scores.append(0.0)
+        return scores
+
+    def get_weights(self, uids: List[int], scores: List[float]):
+        return weight_score(uids, scores)
+
+    def get_metadata(self) -> dict:
+        return {
+            "model": self.model.get_metadata(),
+            "dataset": self.dataset.get_metadata(),
+        }
+
     def serve(self):
+        """Start serving the validator on the specified host and port."""
         from communex.module.server import ModuleServer
         import uvicorn
 
         self.start_validation_loop()
 
-        if self.settings.port:
-            logger.info("server enabled")
-            server = ModuleServer(self, self.key, subnets_whitelist=[self.netuid])
-            app = server.get_fastapi_app()
-            uvicorn.run(app, host=self.settings.host, port=self.settings.port)
-        else:
-            while True:
-                time.sleep(60)
+        server = ModuleServer(self, self.key, subnets_whitelist=[self.netuid])
+        app = server.get_fastapi_app()
+        uvicorn.run(app, host=self.settings.host, port=self.settings.port)
 
 
 if __name__ == "__main__":

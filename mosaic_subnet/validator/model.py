@@ -30,7 +30,17 @@ class CLIP(Module):
         return outputs.logits_per_image.sum().tolist()
 
     def get_metadata(self) -> dict:
-        return {"model": self.model_name}
+        return {
+            "model": self.model_name,
+            "device": str(self.device),
+            "requirements": {
+                "min_ram": "8GB",  # Minimum RAM needed
+                "min_vram": "4GB",  # Minimum VRAM if using GPU
+                "gpu_optional": True,  # Can run on CPU
+                "inference_type": "scoring",  # Just scoring, not generation
+                "avg_inference_time": "~100ms"  # Fast inference
+            }
+        }
 
 
 class HPS(Module):
@@ -45,7 +55,16 @@ class HPS(Module):
         return results[0] * 100
 
     def get_metadata(self) -> dict:
-        return {"model": self.model_name}
+        return {
+            "model": self.model_name,
+            "requirements": {
+                "min_ram": "4GB",  # Lower RAM requirements
+                "min_vram": "2GB",  # Lower VRAM if using GPU
+                "gpu_optional": True,  # Can run on CPU
+                "inference_type": "scoring",  # Just scoring, not generation
+                "avg_inference_time": "~50ms"  # Very fast inference
+            }
+        }
 
 
 class NSFWChecker(Module):
@@ -65,6 +84,19 @@ class NSFWChecker(Module):
             if c["label"] == "nsfw" and c["score"] > 0.8:
                 return True
         return False
+
+    def get_metadata(self) -> dict:
+        return {
+            "model": self.model_name,
+            "device": str(self.device),
+            "requirements": {
+                "min_ram": "8GB",  # Minimum RAM needed
+                "min_vram": "4GB",  # Minimum VRAM if using GPU
+                "gpu_optional": True,  # Can run on CPU
+                "inference_type": "classification",  # Classification task
+                "avg_inference_time": "~150ms"  # Moderate inference time
+            }
+        }
 
 
 if __name__ == "__main__":
